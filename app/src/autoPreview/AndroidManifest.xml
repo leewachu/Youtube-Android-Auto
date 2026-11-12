@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Experimental declaration only; does NOT grant Android Auto video permissions. -->
+    <application>
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.CAR_LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
