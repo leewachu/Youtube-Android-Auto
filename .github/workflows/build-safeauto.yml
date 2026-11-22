@@ -1,0 +1,62 @@
+name: Build SafeAuto APK
+on:
+  push:
+    branches: [safeauto-build-20261122]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 35
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+      - name: Clone audited GPL source
+        run: |
+          git clone https://github.com/GitMag/AnyAuto.git SafeAuto-src
+          git -C SafeAuto-src checkout --detach 9ac39706b79d971ec592e360b137ae308eba36b8
+          test "$(git -C SafeAuto-src rev-parse HEAD)" = 9ac39706b79d971ec592e360b137ae308eba36b8
+      - name: Patch SafeAuto offline (own package, no INTERNET)
+        run: python3 build_tools/patch_safeauto.py SafeAuto-src
+      - name: Build APK
+        working-directory: SafeAuto-src
+        run: bash ./build.sh
+      - name: Verify package, signature and internet permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=SafeAuto-src/safeauto.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump permissions "$APK" | tee /tmp/safeauto-permissions.txt
+          if grep -q 'android.permission.INTERNET' /tmp/safeauto-permissions.txt; then
+            echo 'Offline security check failed: INTERNET present' >&2
+            exit 1
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | head -5
+          mkdir -p releases
+          cp "$APK" releases/SafeAuto-0.10.1.apk
+          (cd releases && sha256sum SafeAuto-0.10.1.apk > SHA256SUMS.txt)
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SafeAuto-0.10.1-APK
+          path: |
+            releases/SafeAuto-0.10.1.apk
+            releases/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish APK on dedicated feature branch
+        shell: bash
+        run: |
+          git config user.name 'SafeAuto CI'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -f releases/SafeAuto-0.10.1.apk releases/SHA256SUMS.txt
+          git commit -m 'Build SafeAuto 0.10.1 APK [skip ci]'
+          git push origin HEAD:safeauto-build-20261122
