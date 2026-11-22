@@ -15,20 +15,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - name: Install Android SDK 35
-        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
-      - name: Clone audited GPL source
+      - name: Use GitHub runner Android SDK 35
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - name: Clone pinned GPL source
         run: |
           git clone https://github.com/GitMag/AnyAuto.git SafeAuto-src
           git -C SafeAuto-src checkout --detach 9ac39706b79d971ec592e360b137ae308eba36b8
           test "$(git -C SafeAuto-src rev-parse HEAD)" = 9ac39706b79d971ec592e360b137ae308eba36b8
-      - name: Patch SafeAuto offline (own package, no INTERNET)
+      - name: Patch SafeAuto offline
         run: python3 build_tools/patch_safeauto.py SafeAuto-src
       - name: Build APK
         working-directory: SafeAuto-src
         run: bash ./build.sh
-      - name: Verify package, signature and internet permissions
+      - name: Verify APK and offline manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -36,14 +39,14 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump permissions "$APK" | tee /tmp/safeauto-permissions.txt
           if grep -q 'android.permission.INTERNET' /tmp/safeauto-permissions.txt; then
-            echo 'Offline security check failed: INTERNET present' >&2
+            echo 'Security check failed: INTERNET present' >&2
             exit 1
           fi
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | head -5
           mkdir -p releases
           cp "$APK" releases/SafeAuto-0.10.1.apk
           (cd releases && sha256sum SafeAuto-0.10.1.apk > SHA256SUMS.txt)
-      - name: Upload APK as workflow artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SafeAuto-0.10.1-APK
@@ -52,7 +55,7 @@ jobs:
             releases/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
-      - name: Publish APK on dedicated feature branch
+      - name: Publish APK on dedicated branch
         shell: bash
         run: |
           git config user.name 'SafeAuto CI'
