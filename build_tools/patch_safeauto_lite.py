@@ -38,7 +38,7 @@ assert n == 1
 for class_name in ['.mirror.MirrorService', '.input.MirrorAccessibilityService']:
     # Service may be self-closing or have a nested intent filter.
     # Limit match to the exact service start tag (not a later service).
-    pattern = r'\\s*<service\\b[^>]*android:name="' + re.escape(class_name) + r'"[^>]*(?:/>|>[\\s\\S]*?</service>)'
+    pattern = r'\s*<service\b[^>]*android:name="' + re.escape(class_name) + r'"[^>]*(?:/>|>[\s\S]*?</service>)'
     s, n = re.subn(pattern, '', s, count=1)
     assert n == 1, (class_name, n)
 assert 'accessibilityservice' not in s.lower()
