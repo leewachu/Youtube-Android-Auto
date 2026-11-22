@@ -36,12 +36,10 @@ for permission in [
 s, n = re.subn(r'\s*<uses-permission android:name="android.permission.WRITE_SETTINGS"\s*tools:ignore="ProtectedPermissions"\s*/>', '', s, count=1)
 assert n == 1
 for class_name in ['.mirror.MirrorService', '.input.MirrorAccessibilityService']:
-    pattern = r'\s*<service\b(?:(?!</service>).)*?android:name="' + re.escape(class_name) + r'"(?:(?!</service>).)*?</service>'
-    s, n = re.subn(pattern, '', s, count=1, flags=re.S)
-    if n == 0:
-        # MirrorService is a self-closing service element
-        pattern = r'\s*<service\s+android:name="' + re.escape(class_name) + r'"[\s\S]*?/>'
-        s, n = re.subn(pattern, '', s, count=1)
+    # Service may be self-closing or have a nested intent filter.
+    # Limit match to the exact service start tag (not a later service).
+    pattern = r'\\s*<service\\b[^>]*android:name="' + re.escape(class_name) + r'"[^>]*(?:/>|>[\\s\\S]*?</service>)'
+    s, n = re.subn(pattern, '', s, count=1)
     assert n == 1, (class_name, n)
 assert 'accessibilityservice' not in s.lower()
 assert 'mediaProjection' not in s
