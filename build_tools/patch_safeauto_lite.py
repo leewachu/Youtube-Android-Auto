@@ -128,6 +128,10 @@ class SetupActivity : Activity() {
         ))
         setContentView(root)
     }
+    companion object {
+        // Retained only for compilation of legacy unused mirroring classes.
+        const val EXTRA_REQUEST_CAPTURE = "request_capture"
+    }
 }
 ''')
 
@@ -136,6 +140,9 @@ s = p.read_text()
 assert s.count('<string name="app_name">AA Suite</string>') == 1
 p.write_text(s.replace('<string name="app_name">AA Suite</string>', '<string name="app_name">SafeAuto Lite</string>'))
 
+assets = root / 'app/src/main/assets'
+assets.mkdir(parents=True, exist_ok=True)
+(assets / 'LICENSE_AASUITE.txt').write_text((root / 'LICENSE').read_text())
 (root / 'SAFEAUTO_LITE_NOTICE.md').write_text('''# SafeAuto Lite 1.0 (experimental)
 Built from iAlias/AASuite, commit e449095fa56269c091a6bc16b08c0dad72b14bb5.
 Original software copyright (c) 2026 iAlias, licensed MIT (LICENSE retained).
