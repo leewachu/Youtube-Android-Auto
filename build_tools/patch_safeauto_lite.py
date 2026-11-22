@@ -35,12 +35,18 @@ for permission in [
     s = s.replace(before, '')
 s, n = re.subn(r'\s*<uses-permission android:name="android.permission.WRITE_SETTINGS"\s*tools:ignore="ProtectedPermissions"\s*/>', '', s, count=1)
 assert n == 1
-for class_name in ['.mirror.MirrorService', '.input.MirrorAccessibilityService']:
-    # Service may be self-closing or have a nested intent filter.
-    # Limit match to the exact service start tag (not a later service).
-    pattern = r'\s*<service\b[^>]*android:name="' + re.escape(class_name) + r'"[^>]*(?:/>|>[\s\S]*?</service>)'
-    s, n = re.subn(pattern, '', s, count=1)
-    assert n == 1, (class_name, n)
+import xml.etree.ElementTree as ET
+ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
+ET.register_namespace('tools', 'http://schemas.android.com/tools')
+manifest_root = ET.fromstring(s)
+application = manifest_root.find('application')
+android_name = '{http://schemas.android.com/apk/res/android}name'
+obsolete = {'.mirror.MirrorService', '.input.MirrorAccessibilityService'}
+matching = [service for service in application.findall('service') if service.get(android_name) in obsolete]
+assert len(matching) == 2, [node.get(android_name) for node in matching]
+for service in matching:
+    application.remove(service)
+s = ET.tostring(manifest_root, encoding='unicode')
 assert 'accessibilityservice' not in s.lower()
 assert 'mediaProjection' not in s
 assert 'shizuku' not in s.lower()
